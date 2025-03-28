@@ -202,13 +202,14 @@ When we call `MultiHostConnectionStrategy.connect()` method, it returns `Mono<Co
 two instances of `exceptionRef` (one from `connect(TargetServerType)` and the second one from 
 `attemptConnection(TargetServerType)`). So when we are using target type `PREFER_SECONDARY` and the first `attemptConnection` 
 is not successful, the `exceptionRef` is filled with that particular exception. Then in `connect(TargetServerType)` method, we
-store the same exception in their `exceptionRef`. First connection is always successful (connected to primary instance), 
+store the same exception in its `exceptionRef`. First connection is always successful (connected to primary instance), 
 because `exceptionRef` in the `connect` method is empty. All subsequent connections are failing, because the
-`attemtConnection` method is returning the same exception, and then in the `connect` method we are trying to do:
+`attemtConnection` method is returning the same exception, and then in the `connect` method there is line:
 ```java
 exceptionRef.get().addSuppressed(e);
 ```
-and this is causing `java.lang.IllegalArgumentException: Self-suppression not permitted` exception to be thrown.
+This is causing the `java.lang.IllegalArgumentException: Self-suppression not permitted` exception to be thrown, 
+because `e` is the same exception as stored in a `exceptionRef` variable.
 
 ## Solution
 
