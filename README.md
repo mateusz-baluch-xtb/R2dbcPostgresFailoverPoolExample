@@ -158,7 +158,7 @@ Above error is misleading, because we set `PREFER_SECONDARY` target server type,
 that we can connect to primary instance. So why the connection to the primary instance is not happening?
 
 The problem is that the connection pool is calling MultiHostConnectionStrategy.connect() method only once - to initialize
-`Mono<Connection>`. Code important to understand the problem is located in `io.r2dbc.postgresql.MultiHostConnectionStrategy` class.
+`Mono<Connection>`. Code that is important to understand the problem (copied from `io.r2dbc.postgresql.MultiHostConnectionStrategy` class):
 ```java
 public Mono<Client> connect(TargetServerType targetServerType) {
    AtomicReference<Throwable> exceptionRef = new AtomicReference<>();
@@ -198,11 +198,11 @@ private Mono<Client> attemptConnection(TargetServerType targetServerType) {
 }
 ```
 
-When we call `MultiHostConnectionStrategy.connect()` method, it returns `Mono<Connection>` with references the same
+When we call `MultiHostConnectionStrategy.connect()` method, it returns `Mono<Connection>` with references to the same
 two instances of `exceptionRef` (one from `connect(TargetServerType)` and the second one from 
-`attemptConnection(TargetServerType)`. So when using target type `PREFER_SECONDARY` and the first `attemptConnection` 
-is not successful, the `exceptionRef` is filled with that exception. Then in `connect(TargetServerType)` method, we
-store the same exception in `exceptionRef`. First connection is always successful (connecting to primary instance), 
+`attemptConnection(TargetServerType)`). So when we are using target type `PREFER_SECONDARY` and the first `attemptConnection` 
+is not successful, the `exceptionRef` is filled with that particular exception. Then in `connect(TargetServerType)` method, we
+store the same exception in their `exceptionRef`. First connection is always successful (connected to primary instance), 
 because `exceptionRef` in the `connect` method is empty. All subsequent connections are failing, because the
 `attemtConnection` method is returning the same exception, and then in the `connect` method we are trying to do:
 ```java
@@ -213,7 +213,7 @@ and this is causing `java.lang.IllegalArgumentException: Self-suppression not pe
 ## Solution
 
 The solution to that problem is to create a new instance of `AtomicReference<Throwable>` in the `attemptConnection` 
-and `connect` methods for each connection attempt. We can do it by wrapping method calls in `Mono.defer(() -> call())`.
+and `connect` methods for each connection attempt. We can do it by wrapping method calls inside defer function (`Mono.defer(() -> call())`).
 
 Example:
 ```java
@@ -231,6 +231,6 @@ Example:
 
 ### Explanation:
 
-The `Mono.defer(() -> call())` method will create a new instance of `AtomicReference<Throwable>` for each connection
-attempt. This will prevent the `java.lang.IllegalArgumentException: Self-suppression not permitted` exception from being
-thrown.
+The `Mono.defer(() -> call())` method will call `connect` and `attemptConnection` for each connection (not only once),
+and it will create a new instances of `AtomicReference<Throwable>`. This will prevent the 
+`java.lang.IllegalArgumentException: Self-suppression not permitted` exception from being thrown.
