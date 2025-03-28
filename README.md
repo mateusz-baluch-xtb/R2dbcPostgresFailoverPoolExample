@@ -231,6 +231,6 @@ Example:
 
 ### Explanation:
 
-The `Mono.defer(() -> call())` method will call `connect` and `attemptConnection` for each connection (not only once),
-and it will create a new instances of `AtomicReference<Throwable>`. This will prevent the 
+The `Mono.defer` method will call `connect` and `attemptConnection` for each connection (not only once),
+and it will create new instances of `AtomicReference<Throwable>`. This will prevent the 
 `java.lang.IllegalArgumentException: Self-suppression not permitted` exception from being thrown.
